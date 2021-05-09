@@ -1,0 +1,4 @@
+name = "Glaciers"
+uuid = "d93d9af2-ef47-4c84-adaf-70aead08541e"
+authors = ["Paul Matlashewski <pmatlashewski@gmail.com>"]
+version = "0.1.0"
