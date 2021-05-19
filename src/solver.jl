@@ -17,6 +17,15 @@ function elliptic(ice::Ice{T}, i) where {T}
     return a + h * (b - c) - d
 end
 
+# function elliptic_bc(ice::Ice{T}) where {T}
+#     a = (ice.hm^2 - 4ice.ϵ * qu⁻(ice, ice.N+1)) / (ice.Δx * ice.xm)
+#     b = 1 - ice.δ * ∂h_∂σ(ice, ice.N+1)
+#     c = ice.β * sign(ice.u[end]) * abs(ice.u[end])^(1/ice.n)
+#     d = ice.C * sign(ice.u[end]) * abs(ice.u[end])^(1/ice.n)
+#     h = ice.hm
+#     return a + h * (b - c) - d
+# end
+
 function elliptic_bc(ice::Ice{T}) where {T}
     a = -4ice.ϵ * qu⁻(ice, ice.N+1) / (ice.Δx * ice.xm)
     b = 1 - ice.δ * ∂h_∂σ(ice, ice.N+1)
@@ -60,7 +69,7 @@ function solve_height(ice::Ice{T}) where {T}
         ice.xm = x[end]
         ice.h[1] = ice.h[2]
         for i in 2:ice.N+1
-            F[i-1] = ice.h[i] - ice.h0[i] - div_flux(ice, i) + source(ice, i)
+            F[i-1] = ice.h[i] - ice.h0[i] + div_flux(ice, i) + source(ice, i)
         end
         F[end] = ice.h[ice.N+1] - 2ice.hm
     end
@@ -86,7 +95,7 @@ function solve(ice::Ice{T}) where {T}
         k += 1
         # Hyperbolic problem
         for i in 2:N+1
-            F[k] = ice.h[i] - ice.h0[i] - div_flux(ice, i) + source(ice, i)
+            F[k] = ice.h[i] - ice.h0[i] + div_flux(ice, i) + source(ice, i)
             k += 1
         end
         F[k] = ice.h[ice.N+1] - 2ice.hm

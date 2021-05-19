@@ -64,7 +64,7 @@ function ice_solve()
     solve_velocity(ice)
     ice.u0 .= ice.u
 
-    iters = 200
+    iters = 300
     h_data = zeros(iters, N + 1)
     u_data = zeros(iters, N + 1)
     x_data = zeros(iters, N + 1)
