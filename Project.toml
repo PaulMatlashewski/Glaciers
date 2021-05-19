@@ -2,3 +2,8 @@ name = "Glaciers"
 uuid = "d93d9af2-ef47-4c84-adaf-70aead08541e"
 authors = ["Paul Matlashewski <pmatlashewski@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
