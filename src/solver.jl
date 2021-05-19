@@ -17,7 +17,7 @@ function elliptic(ice::Ice{T}, i) where {T}
     return a + h * (b - c) - d
 end
 
-function bc(ice::Ice{T}) where {T}
+function elliptic_bc(ice::Ice{T}) where {T}
     a = -4ice.ϵ * qu⁻(ice, ice.N+1) / (ice.Δx * ice.xm)
     b = 1 - ice.δ * ∂h_∂σ(ice, ice.N+1)
     c = ice.β * sign(ice.u[end]) * abs(ice.u[end])^(1/ice.n)
@@ -46,10 +46,10 @@ end
 function solve_velocity(ice::Ice{T}) where {T}
     function f!(F, x)
         ice.u[2:end] .= x
-        for i = 2:(ice.N)
+        for i in 2:(ice.N)
             F[i-1] = elliptic(ice, i)
         end
-        F[end] = bc(ice)
+        F[end] = elliptic_bc(ice)
     end
     return nlsolve(f!, ice.u0[2:end])
 end
@@ -66,4 +66,30 @@ function solve_height(ice::Ice{T}) where {T}
     end
     sol = nlsolve(f!, vcat(ice.h0[2:end-1], [ice.xm0]))
     return sol
+end
+
+function solve(ice::Ice{T}) where {T}
+    N = ice.N
+    function f!(F, x)
+        # Unpack vector
+        ice.u[2:end] .= x[1:N]
+        ice.h[2:end-1] .= x[N+1:2N]
+        ice.xm = x[2N+1]
+        ice.h[1] = ice.h[2]
+        k = 1
+        # Elliptic problem
+        for i in 2:N
+            F[k] = elliptic(ice, i)
+            k += 1
+        end
+        F[k] = elliptic_bc(ice)
+        k += 1
+        # Hyperbolic problem
+        for i in 2:N+1
+            F[k] = ice.h[i] - ice.h0[i] - div_flux(ice, i) + source(ice, i)
+            k += 1
+        end
+        F[k] = ice.h[ice.N+1] - 2ice.hm
+    end
+    return nlsolve(f!, vcat(ice.u0[2:end], ice.h0[2:end-1], [ice.xm0]))
 end

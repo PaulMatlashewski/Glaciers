@@ -32,8 +32,8 @@ end
 function animate_ice(x, h, fps)
     n = size(x)[1]
     duration = 1/fps
-    ylims = (minimum(h) - 0.1, maximum(h) + 0.1)
-    xlims = (-0.1, maximum(x) + 0.1)
+    ylims = (minimum(h) - 0.01, maximum(h) + 0.01)
+    xlims = (-0.01, maximum(x) + 0.01)
     gr(show=true)
     for i in 1:n
         t = time()
