@@ -17,15 +17,6 @@ function elliptic(ice::Ice{T}, i) where {T}
     return a + h * (b - c) - d
 end
 
-# function elliptic_bc(ice::Ice{T}) where {T}
-#     a = (ice.hm^2 - 4ice.ϵ * qu⁻(ice, ice.N+1)) / (ice.Δx * ice.xm)
-#     b = 1 - ice.δ * ∂h_∂σ(ice, ice.N+1)
-#     c = ice.β * sign(ice.u[end]) * abs(ice.u[end])^(1/ice.n)
-#     d = ice.C * sign(ice.u[end]) * abs(ice.u[end])^(1/ice.n)
-#     h = ice.hm
-#     return a + h * (b - c) - d
-# end
-
 function elliptic_bc(ice::Ice{T}) where {T}
     a = -4ice.ϵ * qu⁻(ice, ice.N+1) / (ice.Δx * ice.xm)
     b = 1 - ice.δ * ∂h_∂σ(ice, ice.N+1)
@@ -41,11 +32,27 @@ dxₘ_dt(ice) = (ice.xm - ice.xm0) / ice.Δt
 function flux(ice::Ice{T}, i) where {T}
     ẋm = dxₘ_dt(ice)
     v = ice.u[i] - ice.σ[i]*ẋm
-    v >= 0 ? (return v * ice.h[i]) : (return v * ice.h[i + 1])
+    if v >= 0
+        return 1, v * ice.h[i]
+    else
+        return -1, v * ice.h[i + 1]
+    end
 end
 
 function div_flux(ice::Ice{T}, i) where {T}
-    return ice.Δt*(flux(ice, i) - flux(ice, i-1)) / (ice.Δx * ice.xm)
+    dir_R, F_R = flux(ice, i)
+    dir_L, F_L = flux(ice, i - 1)
+    if (dir_L > 0 && dir_R > 0)
+        ice.colors[i] = 1
+    elseif (dir_L < 0 && dir_R < 0)
+        ice.colors[i] = 2
+    elseif (dir_L >= 0 && dir_R < 0) || (dir_L > 0 && dir_R <= 0)
+        ice.colors[i] = 3
+    elseif (dir_L <= 0 && dir_R >= 0)
+        ice.colors[i] = 4
+    end
+
+    return ice.Δt*(F_R - F_L) / (ice.Δx * ice.xm)
 end
 
 function source(ice::Ice{T}, i) where {T}
@@ -77,14 +84,15 @@ function solve_height(ice::Ice{T}) where {T}
     return sol
 end
 
-function solve(ice::Ice{T}) where {T}
+function solve!(ice::Ice{T}) where {T}
     N = ice.N
     function f!(F, x)
         # Unpack vector
         ice.u[2:end] .= x[1:N]
         ice.h[2:end-1] .= x[N+1:2N]
-        ice.xm = x[2N+1]
+        ice.xm = x[end]
         ice.h[1] = ice.h[2]
+        ice.h[end] = 0.0
         k = 1
         # Elliptic problem
         for i in 2:N
@@ -98,7 +106,21 @@ function solve(ice::Ice{T}) where {T}
             F[k] = ice.h[i] - ice.h0[i] + div_flux(ice, i) + source(ice, i)
             k += 1
         end
-        F[k] = ice.h[ice.N+1] - 2ice.hm
+        F[k] = ice.h[end-1] - 2ice.hm
     end
-    return nlsolve(f!, vcat(ice.u0[2:end], ice.h0[2:end-1], [ice.xm0]))
+    for i in 1:ice.tsteps
+        print("Step $(i) / $(ice.tsteps)")
+        sol = nlsolve(f!, vcat(ice.u0[2:end], ice.h0[2:end-1], [ice.xm0]))
+        println("    Converged: $(sol.f_converged)   Iterations: $(sol.iterations)   Inf-norm: $(sol.residual_norm)")
+        if ice.store_trace
+            ice.h_trace[:, i] .= ice.h
+            ice.u_trace[:, i] .= ice.u
+            ice.c_trace[:, i] .= ice.colors
+            ice.xm_trace[i] = ice.xm
+        end
+        ice.u0 .= ice.u
+        ice.h0 .= ice.h
+        ice.xm0 = ice.xm
+        ice.Δt = ice.Δx / maximum(ice.u)
+    end
 end
